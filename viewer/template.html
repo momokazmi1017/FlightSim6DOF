@@ -1,0 +1,745 @@
+<title>E5-75 Flight Replay</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+<style>
+  /* One committed look: a daylight desert scene under slate instrument panels. */
+  :root {
+    color-scheme: dark;
+    --panel: rgba(20, 30, 40, 0.80);
+    --panel-edge: rgba(255, 255, 255, 0.10);
+    --ink: #eef3f6;
+    --ink-2: #a8b7c3;
+    --ink-3: #74889a;
+    --track: rgba(255, 255, 255, 0.14);
+    --rail: #d8dde2;
+    --powered: #ff8a3d;
+    --coast: #5aa9ff;
+    --descent: #4cc38a;
+    --focus: #ffd08a;
+    --sans: "IBM Plex Sans Condensed", "Arial Narrow", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: #b9cbd8; color: var(--ink);
+    font: 14px/1.35 var(--sans);
+  }
+  #scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  .hud {
+    position: fixed; inset: 0; pointer-events: none;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto;
+    gap: 12px; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .panel {
+    pointer-events: auto; background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 8px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .brand { padding: 12px 14px; display: grid; gap: 10px; align-self: start; max-width: 360px; }
+  .brand h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: 0.01em; text-wrap: balance; }
+  .brand p { margin: 0; color: var(--ink-2); font-size: 13px; }
+  .eyebrow { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button, .chip-btn {
+    font: 500 13px var(--sans); color: var(--ink-2); background: transparent;
+    border: 1px solid var(--track); border-radius: 6px; padding: 5px 10px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { color: #15202a; background: var(--rail); border-color: var(--rail); }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"]:hover { color: #15202a; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .toggles label { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 13px; cursor: pointer; }
+  .toggles input { accent-color: var(--powered); }
+
+  .telemetry { padding: 12px 14px; align-self: start; min-width: 220px; display: grid; gap: 10px; }
+  .clock { font: 500 28px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .phase { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .phase i { width: 10px; height: 10px; border-radius: 50%; background: var(--rail); display: inline-block; }
+  .readouts { display: grid; grid-template-columns: auto auto; gap: 4px 16px; margin: 0; }
+  .readouts dt { color: var(--ink-3); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; align-self: baseline; }
+  .readouts dd { margin: 0; font: 15px var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .readouts dd small { color: var(--ink-3); font-size: 11px; margin-left: 3px; }
+  .throttle { height: 4px; background: var(--track); border-radius: 2px; overflow: hidden; }
+  .throttle span { display: block; height: 100%; width: 0; background: var(--powered); }
+  #chart { width: 100%; height: 70px; display: block; }
+
+  .transport { grid-column: 1 / -1; padding: 10px 14px 12px; display: grid; gap: 8px; }
+  .transport-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .play {
+    width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+    background: var(--powered); color: #1b1208; display: grid; place-items: center; flex: none;
+  }
+  .play svg { width: 16px; height: 16px; fill: currentColor; }
+  .timeline { position: relative; flex: 1 1 320px; min-width: 0; height: 34px; }
+  .timeline input { position: absolute; inset: 12px 0 auto; width: 100%; margin: 0; accent-color: var(--powered); }
+  .ticks { position: absolute; inset: 0; pointer-events: none; }
+  .tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+  .tick::after { content: ""; position: absolute; left: 50%; top: 14px; width: 1px; height: 12px; background: var(--ink-3); }
+  .tick.end { transform: translateX(-100%); }
+  .tick.end::after { left: auto; right: 0; }
+  .split { position: absolute; top: 30px; font-size: 10px; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+  .speed-label { color: var(--ink-3); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .tag {
+    position: fixed; left: 0; top: 0; pointer-events: none; transform: translate(10px, -50%);
+    font: 12px var(--mono); color: #15202a; background: rgba(238, 243, 246, 0.92);
+    padding: 2px 6px; border-radius: 4px; white-space: nowrap;
+  }
+  .tag::before {
+    content: ""; position: absolute; left: -12px; top: 50%; width: 8px; height: 8px; margin-top: -4px;
+    border: 2px solid rgba(238, 243, 246, 0.95); border-radius: 50%;
+  }
+  .notice { position: fixed; inset: auto 16px 50% 16px; text-align: center; color: #15202a; font-size: 16px; }
+
+  @media (max-width: 720px) {
+    .hud { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr auto; }
+    .brand { max-width: none; }
+    .brand p, #chart { display: none; }
+    .telemetry { min-width: 0; grid-template-columns: auto 1fr; align-items: center; }
+    .telemetry .clock { font-size: 22px; }
+    .readouts { grid-column: 1 / -1; grid-template-columns: repeat(4, auto); }
+    .throttle { grid-column: 1 / -1; }
+    .transport { grid-column: 1; }
+  }
+</style>
+
+<canvas id="scene" aria-label="3D replay of the simulated rocket flight"></canvas>
+
+<div class="hud">
+  <section class="panel brand" aria-label="Flight">
+    <div>
+      <div class="eyebrow">6-DOF simulation replay</div>
+      <h1>E5-75 Flight Replay</h1>
+    </div>
+    <p id="blurb">A 54 kg LOX/ethanol rocket flown to 30,000 ft above Spaceport America. Drag to look around.</p>
+    <div class="seg" id="flightSel" role="group" aria-label="Flight"></div>
+    <div class="seg" id="camSel" role="group" aria-label="Camera">
+      <button type="button" data-cam="chase" aria-pressed="true">Chase</button>
+      <button type="button" data-cam="tracking" aria-pressed="false">Tracking camera</button>
+      <button type="button" data-cam="overview" aria-pressed="false">Overview</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="showPath" checked> Flight path</label>
+      <label><input type="checkbox" id="showMC"> 500 Monte Carlo flights</label>
+      <label><input type="checkbox" id="showExhaust" checked> Exhaust trail</label>
+    </div>
+  </section>
+
+  <section class="panel telemetry" aria-label="Telemetry" aria-live="off">
+    <div class="clock" id="clock">T+00:00.0</div>
+    <div class="phase"><i id="phaseDot"></i><span id="phaseName">On the rail</span></div>
+    <dl class="readouts">
+      <dt>Altitude</dt><dd><span id="alt">0</span><small>ft</small></dd>
+      <dt>Speed</dt><dd><span id="spd">0</span><small>ft/s</small></dd>
+      <dt>Mach</dt><dd id="mach">0.00</dd>
+      <dt>Angle of attack</dt><dd><span id="aoa">0.0</span><small>deg</small></dd>
+      <dt>From pad</dt><dd><span id="range">0</span><small>ft</small></dd>
+    </dl>
+    <div class="throttle" title="Engine throttle"><span id="thr"></span></div>
+    <canvas id="chart" aria-hidden="true"></canvas>
+  </section>
+
+  <div></div>
+
+  <section class="panel transport" aria-label="Playback">
+    <div class="transport-row">
+      <button type="button" class="play" id="play" aria-label="Pause">
+        <svg viewBox="0 0 16 16" id="playIcon"><rect x="3" y="2" width="3.5" height="12"/><rect x="9.5" y="2" width="3.5" height="12"/></svg>
+      </button>
+      <div class="timeline">
+        <div class="ticks" id="ticks"></div>
+        <input type="range" id="scrub" min="0" max="1000" step="1" value="0" aria-label="Flight time">
+      </div>
+    </div>
+    <div class="transport-row">
+      <span class="speed-label">Speed</span>
+      <div class="seg" id="speedSel" role="group" aria-label="Playback speed">
+        <button type="button" data-speed="auto" aria-pressed="true">Auto</button>
+        <button type="button" data-speed="0.25" aria-pressed="false">¼×</button>
+        <button type="button" data-speed="1" aria-pressed="false">1×</button>
+        <button type="button" data-speed="5" aria-pressed="false">5×</button>
+        <button type="button" data-speed="20" aria-pressed="false">20×</button>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="tag" id="tag" hidden></div>
+<div class="notice" id="notice" hidden>Flight data missing: run tools/build_viewer.py to build this page.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+"use strict";
+const DATA = /*__FLIGHT_DATA__*/null;
+if (!DATA) { document.getElementById("notice").hidden = false; throw new Error("no flight data"); }
+
+const FT = 0.3048;
+const PHASE_COLORS = ["#d8dde2", "#ff8a3d", "#5aa9ff", "#4cc38a", "#4cc38a"];
+const V = DATA.vehicle;
+const EL = DATA.site.rail_elevation_deg * Math.PI / 180;
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ENU (east, north, up) -> three.js (x = east, y = up, z = -north)
+const enu = (e, n, u) => new THREE.Vector3(e, u, -n);
+
+// --- Renderer, scene, cameras -------------------------------------------------
+const canvas = document.getElementById("scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const HAZE = new THREE.Color("#e3d9c6");
+scene.fog = new THREE.Fog(HAZE, 6000, 70000);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.3, 200000);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x8a6e4a, 0.55));
+const sun = new THREE.DirectionalLight(0xfff1dc, 0.85);
+sun.position.set(-3000, 6000, 2500);
+scene.add(sun);
+
+// Sky dome: haze at the horizon to deep blue overhead
+{
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(150000, 32, 16),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { top: { value: new THREE.Color("#3f78b8") }, horizon: { value: HAZE } },
+      vertexShader: "varying float h; void main(){ h = normalize(position).y; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+      fragmentShader: "uniform vec3 top; uniform vec3 horizon; varying float h; void main(){ float k = pow(clamp(h,0.,1.),0.45); gl_FragColor = vec4(mix(horizon, top, k),1.); }",
+    }));
+  scene.add(sky);
+}
+
+// --- Terrain: the Jornada del Muerto basin, mountains to the east and west ------
+function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function noise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y) { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * noise(x, y); x *= 2.03; y *= 2.03; a *= 0.5; } return s; }
+function terrainHeight(e, n) {
+  const east = Math.max(0, Math.abs(e + 2000) - 18000) / 9000;     // ranges ~20 km east and west
+  const ridge = Math.min(east, 1.6) ** 1.6 * 1100 * (0.55 + 0.9 * fbm(e / 5000, n / 5000));
+  const undulate = (fbm(e / 1800 + 7, n / 1800 - 3) - 0.5) * 18;
+  const flatPad = Math.min(1, Math.hypot(e, n) / 600);              // level ground around the pad
+  return (ridge + undulate) * flatPad;
+}
+{
+  const size = 90000, seg = 240;
+  const g = new THREE.PlaneGeometry(size, size, seg, seg);
+  g.rotateX(-Math.PI / 2);
+  const pos = g.attributes.position, colors = [];
+  const sand = new THREE.Color("#c9ad86"), scrub = new THREE.Color("#a79470"), rock = new THREE.Color("#8d7a66");
+  for (let i = 0; i < pos.count; i++) {
+    const e = pos.getX(i), n = -pos.getZ(i), h = terrainHeight(e, n);
+    pos.setY(i, h - 0.2);
+    const c = sand.clone().lerp(scrub, fbm(e / 700, n / 700) * 0.9).lerp(rock, Math.min(1, h / 700)).convertSRGBToLinear();
+    colors.push(c.r, c.g, c.b);
+  }
+  g.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true })));
+
+  // 1 km survey grid across the basin, faint
+  const grid = new THREE.GridHelper(40000, 40, 0x6d5d48, 0x6d5d48);
+  grid.material.transparent = true; grid.material.opacity = 0.16; grid.position.y = 0.3;
+  scene.add(grid);
+}
+
+// --- Pad and launch tower -------------------------------------------------------
+const railDir = enu(0, Math.cos(EL), Math.sin(EL)).normalize();
+{
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 0.4, 40),
+    new THREE.MeshLambertMaterial({ color: 0x9c978d }));
+  pad.position.y = 0.2;
+  scene.add(pad);
+  const steel = new THREE.MeshLambertMaterial({ color: 0x5b6670 });
+  const tower = new THREE.Group();
+  const L = V.rail_length + 1.5, w = 0.55;
+  for (const [dx, dz] of [[-w, -w], [w, -w], [-w, w], [w, w]]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, L, 0.08), steel);
+    leg.position.set(dx, L / 2, dz);
+    tower.add(leg);
+  }
+  for (let y = 1; y < L; y += 1.2) {
+    for (const [sx, sz, rx, rz] of [[2 * w, 0.05, 0, -w], [2 * w, 0.05, 0, w], [0.05, 2 * w, -w, 0], [0.05, 2 * w, w, 0]]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.05, sz), steel);
+      bar.position.set(rx, y, rz);
+      tower.add(bar);
+    }
+  }
+  tower.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), railDir);
+  tower.position.copy(enu(0, -0.35, 0));
+  scene.add(tower);
+}
+
+// --- The rocket, built to the design's dimensions --------------------------------
+// Model frame: +Y is the nose direction; origin at the nose tip, body along -Y.
+const rocket = new THREE.Group();
+const body = new THREE.Group();
+rocket.add(body);
+{
+  const R = V.diameter / 2, L = V.length, Ln = V.nose_length;
+  const white = new THREE.MeshLambertMaterial({ color: 0xf2f2ee });
+  // Roll pattern: alternating black and white quarters, as painted on test rockets
+  const tex = document.createElement("canvas"); tex.width = 64; tex.height = 8;
+  const cx = tex.getContext("2d");
+  for (let i = 0; i < 4; i++) { cx.fillStyle = i % 2 ? "#141414" : "#f2f2ee"; cx.fillRect(i * 16, 0, 16, 8); }
+  const rollMat = new THREE.MeshLambertMaterial({ map: new THREE.CanvasTexture(tex) });
+  const tankMat = new THREE.MeshLambertMaterial({ color: 0xc9ccd0 });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x2a2d31 });
+
+  const rho = (R * R + Ln * Ln) / (2 * R), pts = [];
+  for (let i = 0; i <= 32; i++) {
+    const x = Ln * i / 32;
+    pts.push(new THREE.Vector2(Math.max(Math.sqrt(rho * rho - (Ln - x) ** 2) + R - rho, 1e-4), -x));
+  }
+  body.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 32), white));
+
+  function tube(from, to, mat) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(R, R, to - from, 32, 1, true), mat);
+    m.position.y = -(from + to) / 2;
+    body.add(m);
+  }
+  const [ox, fu] = V.tanks;
+  tube(Ln, ox[0], rollMat);                           // recovery, avionics and pressurant bays
+  tube(ox[0], ox[0] + ox[1], tankMat);                // LOX tank
+  tube(ox[0] + ox[1], fu[0], white);
+  tube(fu[0], fu[0] + fu[1], tankMat);                // fuel tank
+  tube(fu[0] + fu[1], L, white);
+  const aft = new THREE.Mesh(new THREE.CircleGeometry(R, 32), dark);
+  aft.rotation.x = Math.PI / 2; aft.position.y = -L;
+  body.add(aft);
+  const re = V.nozzle_exit_diameter / 2;
+  const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(re * 0.55, re, 0.09, 24, 1, true), dark);
+  nozzle.position.y = -L - 0.045;
+  body.add(nozzle);
+
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0);
+  shape.lineTo(V.fin_span, -V.fin_sweep);
+  shape.lineTo(V.fin_span, -V.fin_sweep - V.fin_tip);
+  shape.lineTo(0, -V.fin_root);
+  shape.closePath();
+  const finGeom = new THREE.ExtrudeGeometry(shape, { depth: V.fin_thickness, bevelEnabled: false });
+  finGeom.translate(R, 0, -V.fin_thickness / 2);
+  for (let k = 0; k < V.fins; k++) {
+    const fin = new THREE.Mesh(finGeom, dark);
+    fin.position.y = -(L - V.fin_root);
+    fin.rotation.y = k * 2 * Math.PI / V.fins;
+    body.add(fin);
+  }
+}
+
+// Engine flame: an additive cone, hot white at the nozzle fading to orange
+const flameMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+  uniforms: { uTime: { value: 0 }, uPower: { value: 1 } },
+  vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+  fragmentShader: `uniform float uTime; uniform float uPower; varying vec2 vUv;
+    void main(){
+      float along = 1.0 - vUv.y;
+      float flick = 0.85 + 0.15*sin(uTime*55.0 + along*20.0);
+      vec3 core = vec3(1.0, 0.95, 0.85), outer = vec3(1.0, 0.45, 0.12);
+      vec3 col = mix(core, outer, smoothstep(0.0, 0.55, along));
+      float a = (1.0 - smoothstep(0.1, 1.0, along)) * flick * uPower;
+      gl_FragColor = vec4(col * a, a);
+    }`,
+});
+const flame = new THREE.Mesh(new THREE.CylinderGeometry(V.nozzle_exit_diameter / 2, 0.25, 1, 20, 1, true), flameMat);
+flame.geometry.translate(0, -0.5, 0);
+flame.position.y = -V.length - 0.09;
+body.add(flame);
+const glow = new THREE.PointLight(0xff9a4a, 0, 60, 2);
+glow.position.y = -V.length - 0.6;
+body.add(glow);
+
+// Parachutes: gored canopies with shroud lines
+function makeChute(diameter, colorA, colorB, lineLen) {
+  const g = new THREE.Group();
+  const gores = 12;
+  const geo = new THREE.SphereGeometry(diameter / 2, gores * 2, 8, 0, Math.PI * 2, 0, Math.PI * 0.42);
+  const colors = [];
+  const ca = new THREE.Color(colorA), cb = new THREE.Color(colorB), pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const ang = Math.atan2(pos.getZ(i), pos.getX(i)) + Math.PI;
+    const c = (Math.floor(ang / (2 * Math.PI) * gores) % 2 ? ca : cb).clone().convertSRGBToLinear();
+    colors.push(c.r, c.g, c.b);
+  }
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  const canopy = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  canopy.scale.y = 0.6;
+  canopy.position.y = lineLen;
+  g.add(canopy);
+  const rim = [], rimR = diameter / 2 * Math.sin(Math.PI * 0.42), rimY = lineLen + diameter / 2 * Math.cos(Math.PI * 0.42) * 0.6;
+  for (let k = 0; k < gores; k++) {
+    const a = k / gores * Math.PI * 2;
+    rim.push(0, 0, 0, Math.cos(a) * rimR, rimY, Math.sin(a) * rimR);
+  }
+  const lines = new THREE.BufferGeometry();
+  lines.setAttribute("position", new THREE.Float32BufferAttribute(rim, 3));
+  g.add(new THREE.LineSegments(lines, new THREE.LineBasicMaterial({ color: 0x3a3a3a })));
+  g.visible = false;
+  return g;
+}
+const drogue = makeChute(0.85, "#ff7a1a", "#f4f1ea", 5);
+const main = makeChute(4.2, "#d9352b", "#f4f1ea", 8);
+scene.add(rocket, drogue, main);
+
+// --- Flights ----------------------------------------------------------------------
+const lift = (V.length - V.x_cg) * Math.sin(EL) + 0.4;   // tail just above the pad at T-0
+const T = new THREE.Matrix4(), tmpM = new THREE.Matrix4();
+function bodyToThree(qw, qx, qy, qz) {
+  // Body axes in ENU from the attitude quaternion, then model axes in three.js
+  const w = qw, x = qx, y = qy, z = qz;
+  const xb = [1 - 2 * (y * y + z * z), 2 * (x * y + w * z), 2 * (x * z - w * y)];
+  const yb = [2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)];
+  const zb = [2 * (x * z + w * y), 2 * (y * z - w * x), 1 - 2 * (x * x + y * y)];
+  const X = enu(...yb), Y = enu(...xb), Z = enu(...zb).negate();
+  tmpM.makeBasis(X, Y, Z);
+  return new THREE.Quaternion().setFromRotationMatrix(tmpM);
+}
+const flights = DATA.flights.map((f) => {
+  const n = f.rows.length;
+  const F = { label: f.label, events: f.events, summary: f.summary, n,
+    t: new Float64Array(n), pos: [], quat: [], phase: new Uint8Array(n), speed: new Float32Array(n),
+    mach: new Float32Array(n), alpha: new Float32Array(n), thr: new Float32Array(n), altFt: new Float32Array(n) };
+  f.rows.forEach((r, i) => {
+    F.t[i] = r[0];
+    F.pos.push(enu(r[1], r[2], r[3] + lift));
+    F.quat.push(r[4] === null ? null : bodyToThree(r[4], r[5], r[6], r[7]));
+    F.phase[i] = r[8]; F.speed[i] = r[9]; F.mach[i] = r[10] ?? NaN; F.alpha[i] = r[11] ?? NaN; F.thr[i] = r[12];
+    F.altFt[i] = r[3] / FT;
+  });
+  F.tApogee = f.events.find((e) => e.name === "Apogee").t;
+  F.tEnd = F.t[n - 1];
+  // Flight path, coloured by phase
+  const p = [], c = [];
+  F.pos.forEach((v, i) => { p.push(v.x, v.y, v.z); const col = new THREE.Color(PHASE_COLORS[F.phase[i]]).convertSRGBToLinear(); c.push(col.r, col.g, col.b); });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  g.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+  F.ghost = new THREE.Line(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.22 }));
+  F.path = new THREE.Line(g.clone(), new THREE.LineBasicMaterial({ vertexColors: true }));
+  scene.add(F.ghost, F.path);
+  // Exhaust: one puff per sample while the engine runs, aging with flight time
+  const puffs = [];
+  F.pos.forEach((v, i) => {
+    if (F.thr[i] > 0.05 && F.quat[i]) {
+      const axis = new THREE.Vector3(0, 1, 0).applyQuaternion(F.quat[i]);
+      puffs.push({ t: F.t[i], p: v.clone().addScaledVector(axis, -(V.length - V.x_cg)) });
+    }
+  });
+  F.puffs = puffs;
+  return F;
+});
+
+// Exhaust particles (shared buffer, rebuilt when the flight changes)
+const MAXP = Math.max(...flights.map((f) => f.puffs.length));
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(MAXP * 3), 3));
+pGeo.setAttribute("size", new THREE.Float32BufferAttribute(new Float32Array(MAXP), 1));
+pGeo.setAttribute("alpha", new THREE.Float32BufferAttribute(new Float32Array(MAXP), 1));
+const exhaust = new THREE.Points(pGeo, new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: { uScale: { value: 400 } },
+  vertexShader: `attribute float size; attribute float alpha; varying float vA; uniform float uScale;
+    void main(){ vA = alpha; vec4 mv = modelViewMatrix*vec4(position,1.); gl_PointSize = size*uScale/max(-mv.z, 1.); gl_Position = projectionMatrix*mv; }`,
+  fragmentShader: `varying float vA; void main(){ float d = length(gl_PointCoord-0.5); float a = vA*smoothstep(0.5,0.1,d); gl_FragColor = vec4(vec3(0.97,0.96,0.94), a); }`,
+}));
+exhaust.frustumCulled = false;
+scene.add(exhaust);
+
+// Monte Carlo: 500 ground tracks, landing points and confidence ellipses
+const mcGroup = new THREE.Group();
+{
+  const MC = DATA.monte_carlo, seg = [], land = [];
+  for (const tr of MC.tracks) {
+    for (let i = 0; i + 1 < tr.length; i++) {
+      const a = enu(tr[i][0], tr[i][1], tr[i][2] + lift), b = enu(tr[i + 1][0], tr[i + 1][1], tr[i + 1][2] + lift);
+      seg.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+    const l = tr[tr.length - 1];
+    const v = enu(l[0], l[1], 3);
+    land.push(v.x, v.y, v.z);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(seg, 3));
+  mcGroup.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x1d3f63, transparent: true, opacity: 0.16 })));
+  const lg = new THREE.BufferGeometry();
+  lg.setAttribute("position", new THREE.Float32BufferAttribute(land, 3));
+  mcGroup.add(new THREE.Points(lg, new THREE.PointsMaterial({ color: 0x1d3f63, size: 5, sizeAttenuation: false })));
+  for (const [key, color] of [["ellipse99", 0xd9352b], ["ellipse90", 0xff8a3d]]) {
+    const e = MC[key].map(([x, y]) => enu(x, y, 4));
+    mcGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(e), new THREE.LineBasicMaterial({ color })));
+  }
+  mcGroup.visible = false;
+  scene.add(mcGroup);
+}
+
+// --- State ---------------------------------------------------------------------------
+const state = { flight: 0, t: -2.5, playing: !reduceMotion, speed: "auto", cam: "chase" };
+const $ = (id) => document.getElementById(id);
+const F = () => flights[state.flight];
+
+// Timeline: ascent (to apogee) gets 60 % of the track, the long descent 40 %
+const SPLIT = 0.6;
+const tToU = (t) => { const f = F(); t = Math.max(0, t); return t <= f.tApogee ? SPLIT * t / f.tApogee : SPLIT + (1 - SPLIT) * Math.min(1, (t - f.tApogee) / (f.tEnd - f.tApogee)); };
+const uToT = (u) => { const f = F(); return u <= SPLIT ? u / SPLIT * f.tApogee : f.tApogee + (u - SPLIT) / (1 - SPLIT) * (f.tEnd - f.tApogee); };
+
+function findIndex(f, t) {
+  let lo = 0, hi = f.n - 1;
+  if (t <= f.t[0]) return 0;
+  if (t >= f.t[hi]) return hi - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (f.t[mid] <= t) lo = mid; else hi = mid; }
+  return lo;
+}
+
+function buildFlightUI() {
+  const sel = $("flightSel");
+  sel.innerHTML = "";
+  flights.forEach((f, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = f.label; b.setAttribute("aria-pressed", String(i === state.flight));
+    b.addEventListener("click", () => selectFlight(i));
+    sel.appendChild(b);
+  });
+  const ticks = $("ticks");
+  ticks.innerHTML = "";
+  for (const e of F().events) {
+    if (e.name === "Liftoff" || e.name === "Rail exit") continue;
+    const d = document.createElement("div");
+    const u = tToU(e.t);
+    d.className = u > 0.97 ? "tick end" : "tick"; d.style.left = (u * 100) + "%"; d.textContent = e.name;
+    ticks.appendChild(d);
+  }
+  const s = document.createElement("div");
+  s.className = "split"; s.style.left = "0"; s.textContent = "Ascent";
+  ticks.appendChild(s);
+  const s2 = document.createElement("div");
+  s2.className = "split"; s2.style.left = (SPLIT * 100 + 1) + "%"; s2.textContent = "Descent (compressed)";
+  ticks.appendChild(s2);
+  flights.forEach((f, i) => { f.ghost.visible = f.path.visible = i === state.flight && $("showPath").checked; });
+  drawChart();
+}
+
+function selectFlight(i) {
+  state.flight = i;
+  state.t = Math.min(state.t, F().tEnd);
+  buildFlightUI();
+}
+
+// --- Altitude chart ------------------------------------------------------------------
+const chart = $("chart");
+function drawChart() {
+  const dpr = Math.min(window.devicePixelRatio, 2), w = chart.clientWidth, h = chart.clientHeight;
+  if (!w) return;
+  chart.width = w * dpr; chart.height = h * dpr;
+  const c = chart.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+  const f = F(), maxAlt = Math.max(...f.altFt);
+  const xy = (i) => [tToU(f.t[i]) * w, h - 4 - f.altFt[i] / maxAlt * (h - 16)];
+  c.lineWidth = 1.5;
+  for (let i = 0; i + 1 < f.n; i++) {
+    c.strokeStyle = PHASE_COLORS[f.phase[i]];
+    c.beginPath(); c.moveTo(...xy(i)); c.lineTo(...xy(i + 1)); c.stroke();
+  }
+  c.fillStyle = "#74889a"; c.font = "11px 'IBM Plex Mono', monospace";
+  c.fillText(Math.round(maxAlt).toLocaleString() + " ft", 4, 10);
+}
+
+// --- Cameras -------------------------------------------------------------------------
+const TRACK_CAM = enu(-450, -250, 1.7);
+const prevRocket = new THREE.Vector3();
+function setCamera(mode) {
+  state.cam = mode;
+  document.querySelectorAll("#camSel button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.cam === mode)));
+  controls.enabled = mode !== "tracking";
+  camera.fov = 45;
+  if (mode === "chase") {
+    camera.position.copy(rocket.position).add(new THREE.Vector3(15, 2, 17));
+    controls.target.copy(rocket.position);
+    controls.minDistance = 3; controls.maxDistance = 400;
+  } else if (mode === "overview") {
+    camera.position.set(14000, 9000, 9000);
+    controls.target.set(1500, 3500, -3500);
+    controls.minDistance = 200; controls.maxDistance = 90000;
+    $("showMC").checked = true; mcGroup.visible = true;
+  } else {
+    camera.position.copy(TRACK_CAM);
+  }
+  prevRocket.copy(rocket.position);
+  camera.updateProjectionMatrix();
+}
+
+// --- Per-frame update ----------------------------------------------------------------
+const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), UP = new THREE.Vector3(0, 1, 0);
+function fmtClock(t) {
+  const s = Math.abs(t), m = Math.floor(s / 60), r = s - 60 * m;
+  return (t < 0 ? "T−" : "T+") + String(m).padStart(2, "0") + ":" + r.toFixed(1).padStart(4, "0");
+}
+
+function update(t, now) {
+  const f = F();
+  const tc = Math.max(0, t);
+  const i = findIndex(f, tc), a = Math.min(1, Math.max(0, (tc - f.t[i]) / (f.t[i + 1] - f.t[i] || 1)));
+  rocket.position.lerpVectors(f.pos[i], f.pos[i + 1], a);
+  const ph = t < 0 ? 0 : (a < 0.5 ? f.phase[i] : f.phase[i + 1]);
+
+  if (f.quat[i] && f.quat[i + 1]) {
+    rocket.quaternion.copy(f.quat[i]).slerp(f.quat[i + 1], a);
+  } else if (f.quat[i]) {
+    rocket.quaternion.copy(f.quat[i]);
+  } else {
+    // Under a parachute the rocket hangs nearly level and swings a little
+    const sway = 0.12 * Math.sin(tc * 0.9);
+    rocket.quaternion.setFromEuler(new THREE.Euler(sway, 0.6, Math.PI / 2 - 0.25 + sway * 0.5));
+  }
+  // The model's origin is the nose tip; put the centre of gravity at the simulated position
+  body.position.y = V.x_cg;
+
+  const thr = t < 0 ? 0 : f.thr[i] * (1 - a) + f.thr[i + 1] * a;
+  const alt = (rocket.position.y - lift) / FT;
+  flame.visible = thr > 0.01;
+  flameMat.uniforms.uTime.value = now / 1000;
+  flameMat.uniforms.uPower.value = Math.min(1, thr * 1.2);
+  flame.scale.set(1 + alt / 12000, (2.4 + alt / 5000) * thr * (0.93 + 0.07 * Math.random()), 1 + alt / 12000);
+  glow.intensity = thr * 2.5;
+
+  drogue.visible = ph === 3;
+  main.visible = ph === 4;
+  for (const ch of [drogue, main]) if (ch.visible) {
+    ch.position.copy(rocket.position);
+    ch.rotation.set(Math.sin(tc * 0.9) * 0.05, 0, Math.cos(tc * 0.7) * 0.05);
+  }
+
+  // Path drawn so far
+  f.path.geometry.setDrawRange(0, t < 0 ? 0 : i + 2);
+
+  // Exhaust puffs expand and fade with age; wind carries them
+  const pos = pGeo.attributes.position, size = pGeo.attributes.size, alpha = pGeo.attributes.alpha;
+  const drift = state.flight === 1 ? 6 : 0;
+  const showEx = $("showExhaust").checked;
+  for (let k = 0; k < MAXP; k++) {
+    const p = f.puffs[k];
+    if (!p || !showEx) { alpha.setX(k, 0); continue; }
+    const age = tc - p.t;
+    if (t < 0 || age < 0) { alpha.setX(k, 0); continue; }
+    pos.setXYZ(k, p.p.x + drift * age, p.p.y + 0.4 * age, p.p.z);
+    size.setX(k, 0.8 + Math.min(age, 90) * 0.9);
+    alpha.setX(k, 0.55 * Math.exp(-age / 45));
+  }
+  pos.needsUpdate = size.needsUpdate = alpha.needsUpdate = true;
+
+  // Telemetry
+  $("clock").textContent = fmtClock(t);
+  $("phaseName").textContent = t < 0 ? "Countdown" : DATA.phases[ph];
+  $("phaseDot").style.background = PHASE_COLORS[ph];
+  $("alt").textContent = Math.max(0, Math.round(alt)).toLocaleString();
+  const spd = f.speed[i] * (1 - a) + f.speed[i + 1] * a;
+  $("spd").textContent = t < 0 ? "0" : Math.round(spd / FT).toLocaleString();
+  const m = f.mach[i];
+  $("mach").textContent = t < 0 || isNaN(m) ? "–" : m.toFixed(2);
+  const al = f.alpha[i];
+  $("aoa").textContent = t < 0 || isNaN(al) ? "–" : al.toFixed(1);
+  const east = rocket.position.x, north = -rocket.position.z;
+  $("range").textContent = Math.round(Math.hypot(east, north) / FT).toLocaleString();
+  $("thr").style.width = (thr * 100).toFixed(0) + "%";
+  if (document.activeElement !== $("scrub")) $("scrub").value = Math.round(tToU(tc) * 1000);
+}
+
+function updateCamera() {
+  if (state.cam === "chase") {
+    tmpV.copy(rocket.position).sub(prevRocket);
+    camera.position.add(tmpV);
+    controls.target.copy(rocket.position);
+  } else if (state.cam === "tracking") {
+    camera.position.copy(TRACK_CAM);
+    camera.lookAt(rocket.position);
+    const d = camera.position.distanceTo(rocket.position);
+    camera.fov = THREE.MathUtils.clamp(2 * Math.atan(V.length * 3 / d) * 180 / Math.PI, 0.3, 50);
+    camera.updateProjectionMatrix();
+  }
+  prevRocket.copy(rocket.position);
+}
+
+function updateTag() {
+  const tag = $("tag");
+  const d = camera.position.distanceTo(rocket.position);
+  const screenLen = V.length / (d * Math.tan(camera.fov * Math.PI / 360)) * canvas.clientHeight / 2;
+  tmpV.copy(rocket.position).project(camera);
+  const onScreen = tmpV.z < 1 && Math.abs(tmpV.x) < 1.05 && Math.abs(tmpV.y) < 1.05;
+  tag.hidden = !onScreen || screenLen > 60;
+  if (!tag.hidden) {
+    tag.style.left = ((tmpV.x + 1) / 2 * canvas.clientWidth) + "px";
+    tag.style.top = ((1 - tmpV.y) / 2 * canvas.clientHeight) + "px";
+    tag.textContent = "E5-75  " + Math.max(0, Math.round((rocket.position.y - lift) / FT)).toLocaleString() + " ft";
+  }
+}
+
+// --- Controls wiring -----------------------------------------------------------------
+function setPlaying(p) {
+  state.playing = p;
+  $("play").setAttribute("aria-label", p ? "Pause" : "Play");
+  $("playIcon").innerHTML = p
+    ? '<rect x="3" y="2" width="3.5" height="12"/><rect x="9.5" y="2" width="3.5" height="12"/>'
+    : '<path d="M4 2 L14 8 L4 14 Z"/>';
+}
+$("play").addEventListener("click", () => {
+  if (!state.playing && state.t >= F().tEnd) state.t = -2.5;
+  setPlaying(!state.playing);
+});
+$("scrub").addEventListener("input", (e) => { state.t = uToT(e.target.value / 1000); });
+document.querySelectorAll("#speedSel button").forEach((b) => b.addEventListener("click", () => {
+  state.speed = b.dataset.speed;
+  document.querySelectorAll("#speedSel button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}));
+document.querySelectorAll("#camSel button").forEach((b) => b.addEventListener("click", () => setCamera(b.dataset.cam)));
+$("showPath").addEventListener("change", buildFlightUI);
+$("showMC").addEventListener("change", (e) => { mcGroup.visible = e.target.checked; });
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && e.target === document.body) { e.preventDefault(); $("play").click(); }
+});
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  drawChart();
+}
+window.addEventListener("resize", resize);
+
+// --- Main loop ---------------------------------------------------------------------------
+buildFlightUI();
+setPlaying(state.playing);
+resize();
+update(state.t, performance.now());
+setCamera("chase");
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  if (state.playing) {
+    const f = F();
+    const rate = state.speed === "auto" ? (state.t < f.tApogee ? 1 : 20) : Number(state.speed);
+    state.t += dt * rate;
+    if (state.t >= f.tEnd) { state.t = f.tEnd; setPlaying(false); }
+  }
+  update(state.t, now);
+  updateCamera();
+  controls.update();
+  updateTag();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

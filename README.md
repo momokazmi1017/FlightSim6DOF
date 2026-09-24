@@ -138,6 +138,29 @@ pressure, and stays above it afterwards. No resonant growth appears (peak
 angle of attack 0.6° in calm air). Even so, fins should be aligned to within
 0.1° when built.
 
+## 3D flight replay
+
+[`viewer/flight_viewer.html`](viewer/flight_viewer.html) is an interactive 3D
+replay of the simulated flights. Download it and open it in any browser; it is
+one self-contained file (three.js, loaded from a CDN).
+
+- The rocket is modelled to the design's dimensions (ogive nose, tank
+  sections, four fins, nozzle), with a black-and-white roll pattern, as on
+  real test vehicles, so roll is visible. Its attitude comes straight from the
+  simulation's quaternions.
+- Engine flame and exhaust trail while it burns; drogue and main parachutes
+  under canopy.
+- **Chase** camera (orbit around the rocket as it flies); **Tracking** camera
+  (a long-lens ground camera 500 m from the pad that zooms to keep the rocket
+  in frame); **Overview** of the whole mission with the 500 Monte Carlo
+  trajectories, landing points and the 90 % / 99 % landing ellipses.
+- Live telemetry (altitude, speed, Mach, angle of attack, range), an altitude
+  profile, and a timeline with event markers, variable speed and scrubbing.
+- Switch between the calm and the 6 m/s crosswind flights to watch the rocket
+  weathercock into the wind.
+
+Rebuild it after changing the design: `python tools/build_viewer.py`.
+
 ## How the simulator works
 
 | Module | What it does |
