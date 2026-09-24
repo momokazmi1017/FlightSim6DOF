@@ -20,6 +20,11 @@ The pipeline:
 Every model is validated against exact solutions or published tables (see
 [Validation](#validation)).
 
+**[▶ Watch the flight in 3D](https://momokazmi1017.github.io/FlightSim6DOF/viewer/flight_viewer.html)**
+(interactive replay in the browser; see [3D flight replay](#3d-flight-replay))
+
+![Liftoff in the 3D flight replay](outputs/viewer/liftoff.png)
+
 ## The vehicle
 
 `python examples/size_vehicle.py`
@@ -140,9 +145,19 @@ angle of attack 0.6° in calm air). Even so, fins should be aligned to within
 
 ## 3D flight replay
 
-[`viewer/flight_viewer.html`](viewer/flight_viewer.html) is an interactive 3D
-replay of the simulated flights. Download it and open it in any browser; it is
-one self-contained file (three.js, loaded from a CDN).
+**[Open the replay in your browser](https://momokazmi1017.github.io/FlightSim6DOF/viewer/flight_viewer.html)**,
+or download [`viewer/flight_viewer.html`](viewer/flight_viewer.html) and open it
+locally. It is one self-contained file; three.js loads from a CDN.
+
+| | |
+|---|---|
+| ![Tracking camera at Mach 1.16](outputs/viewer/tracking.png) | ![Weathercocking in a crosswind](outputs/viewer/weathercock.png) |
+| Long-lens tracking camera, T+4.5 s, Mach 1.16 | Crosswind: turning into the wind after leaving the tower |
+| ![Main parachute](outputs/viewer/parachute.png) | ![Monte Carlo overview](outputs/viewer/overview.png) |
+| Main parachute, 272 ft above the ground | Overview: 500 Monte Carlo trajectories and landing ellipses |
+
+A link ending in `#liftoff`, `#weathercock`, `#tracking`, `#parachute` or
+`#overview` opens the replay paused at that moment.
 
 - The rocket is modelled to the design's dimensions (ogive nose, tank
   sections, four fins, nozzle), with a black-and-white roll pattern, as on
