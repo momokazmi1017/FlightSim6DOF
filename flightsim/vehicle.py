@@ -150,7 +150,8 @@ class VehicleSpec:
     copv_mass_per_litre: float = 0.65     # kg/L, carbon-overwrapped bottle
     tube_mass_per_m: float = 1.3          # kg/m, carbon-fibre airframe (non-tank sections)
     engine_mass: float = 7.0              # kg, regen chamber + injector + mount
-    fins: tuple = (4, 0.30, 0.10, 0.15, 0.20, 4.8e-3)   # n, root, tip, span, sweep, thickness
+    # n, root, tip, span, sweep, thickness. 1/4 in G10: 3/16 in fins failed the flutter check (margin 1.32).
+    fins: tuple = (4, 0.30, 0.10, 0.15, 0.20, 6.35e-3)
     fin_scale: float = 1.0                # scales root, tip, span and sweep together
     rail_length: float = 12.2             # m
 

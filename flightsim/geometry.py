@@ -4,6 +4,7 @@ Stations (x) are measured from the nose tip toward the tail, in metres.
 """
 import math
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 
@@ -19,6 +20,7 @@ class Nose:
         rho = (R * R + L * L) / (2 * R)
         return np.sqrt(rho * rho - (L - np.asarray(x)) ** 2) + R - rho
 
+    @cached_property
     def wetted_area(self) -> float:
         x = np.linspace(0.0, self.length, 400)
         r = self.profile(x)
@@ -87,9 +89,9 @@ class Airframe:
     def radius(self) -> float:
         return self.diameter / 2
 
-    @property
+    @cached_property
     def body_wetted_area(self) -> float:
-        return self.nose.wetted_area() + math.pi * self.diameter * (self.length - self.nose.length)
+        return self.nose.wetted_area + math.pi * self.diameter * (self.length - self.nose.length)
 
     @property
     def fin_wetted_area(self) -> float:

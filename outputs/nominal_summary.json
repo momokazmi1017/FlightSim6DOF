@@ -1,0 +1,40 @@
+{
+  "Calm": {
+    "apogee above site (ft)": 30057.401778386313,
+    "time to apogee (s)": 41.97843994313504,
+    "rail exit speed (ft/s)": 148.59700307565,
+    "burnout altitude (ft)": 5905.853216931559,
+    "max Mach": 1.7043465215948743,
+    "max dynamic pressure (kPa)": 139.7698855458286,
+    "max angle of attack after rail (deg)": 0.3229470185892606,
+    "min static margin, M > 0.3 (cal)": 1.9887902097038654,
+    "drogue descent rate (ft/s)": 101.83938661612544,
+    "landing speed (ft/s)": 19.863594969693253,
+    "flight time (s)": 343.6880021477501,
+    "landing distance (m)": 2120.4956252040206,
+    "landing east / north (m)": [
+      -6.413538024516745e-12,
+      2120.4956252040206
+    ],
+    "min fin flutter margin": 2.0056423361211717
+  },
+  "6 m/s wind from the west": {
+    "apogee above site (ft)": 29781.054953409435,
+    "time to apogee (s)": 41.745939935327925,
+    "rail exit speed (ft/s)": 148.59700307565,
+    "burnout altitude (ft)": 5885.982911368352,
+    "max Mach": 1.7063444374733214,
+    "max dynamic pressure (kPa)": 140.2012004122637,
+    "max angle of attack after rail (deg)": 7.7549988621519965,
+    "min static margin, M > 0.3 (cal)": 1.9891699484396528,
+    "drogue descent rate (ft/s)": 101.8376215515157,
+    "landing speed (ft/s)": 25.7270408454201,
+    "flight time (s)": 341.9417489262938,
+    "landing distance (m)": 3362.7345026206863,
+    "landing east / north (m)": [
+      2643.8278296393555,
+      2078.0177435094365
+    ],
+    "min fin flutter margin": 2.0069224858707506
+  }
+}
