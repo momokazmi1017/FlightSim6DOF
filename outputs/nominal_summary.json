@@ -9,7 +9,8 @@
     "max angle of attack after rail (deg)": 0.3229470185892606,
     "min static margin, M > 0.3 (cal)": 1.9887902097038654,
     "drogue descent rate (ft/s)": 101.83938661612544,
-    "landing speed (ft/s)": 19.863594969693253,
+    "landing descent rate (ft/s)": 19.863594969693253,
+    "landing ground speed (ft/s)": 1.5915403531580755e-74,
     "flight time (s)": 343.6880021477501,
     "landing distance (m)": 2120.4956252040206,
     "landing east / north (m)": [
@@ -28,7 +29,8 @@
     "max angle of attack after rail (deg)": 7.7549988621519965,
     "min static margin, M > 0.3 (cal)": 1.9891699484396528,
     "drogue descent rate (ft/s)": 101.8376215515157,
-    "landing speed (ft/s)": 25.7270408454201,
+    "landing descent rate (ft/s)": 19.79720865267172,
+    "landing ground speed (ft/s)": 16.430190510900786,
     "flight time (s)": 341.9417489262938,
     "landing distance (m)": 3362.7345026206863,
     "landing east / north (m)": [

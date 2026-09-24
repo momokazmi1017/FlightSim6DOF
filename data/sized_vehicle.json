@@ -23,6 +23,7 @@
       0.00635
     ],
     "fin_scale": 0.6324658495383045,
+    "dry_mass_scale": 1.0,
     "rail_length": 12.2
   },
   "site": {

@@ -12,7 +12,7 @@ tank pressure. During flight the liquid in each tank sits at the aft end
 (thrust pushes it there), so its centre of gravity moves aft as it drains.
 """
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -153,6 +153,7 @@ class VehicleSpec:
     # n, root, tip, span, sweep, thickness. 1/4 in G10: 3/16 in fins failed the flutter check (margin 1.32).
     fins: tuple = (4, 0.30, 0.10, 0.15, 0.20, 6.35e-3)
     fin_scale: float = 1.0                # scales root, tip, span and sweep together
+    dry_mass_scale: float = 1.0           # as-built / predicted dry mass (Monte Carlo)
     rail_length: float = 12.2             # m
 
 
@@ -230,6 +231,8 @@ def build_vehicle(spec: VehicleSpec, engine_data: EngineData | None = None) -> V
     parts.append(Part("aft skirt", spec.tube_mass_per_m * ed.length, engine_station, ed.length, r,
                       shell=True))
 
+    if spec.dry_mass_scale != 1.0:
+        parts = [replace(p, mass=p.mass * spec.dry_mass_scale) for p in parts]
     airframe = Airframe(d, x, Nose(Ln, r), fins)
     notes = {"tank wall LOX (mm)": wall(spec.meop_ox) * 1e3, "tank wall fuel (mm)": wall(spec.meop_fuel) * 1e3,
              "COPV volume (L)": copv_volume * 1e3, "nitrogen (kg)": m_n2}

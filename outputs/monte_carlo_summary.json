@@ -1,0 +1,121 @@
+{
+  "runs": 500,
+  "failed": 0,
+  "seed": 2026,
+  "apogee_ft": {
+    "mean": 30076.4008807369,
+    "std": 2326.0599064212524,
+    "p5": 26707.861144391154,
+    "p50": 29927.417193724585,
+    "p95": 33969.77297272917,
+    "min": 23115.82261813705,
+    "max": 39996.97444109402
+  },
+  "within_10pct_of_target": 0.824,
+  "landing_ellipse_99_semi_axes_ft": [
+    13613.75537912208,
+    14558.912029098781
+  ],
+  "landing_ellipse_99_max_distance_from_pad_ft": 24574.87447161363,
+  "worst_case": {
+    "min static margin (cal)": 1.9630226775852042,
+    "min flutter margin": 1.7665492313683484,
+    "min rail exit speed (ft/s)": 138.5935533016816,
+    "max angle of attack (deg)": 12.069431422220015,
+    "max roll rate (deg/s)": 1396.1656911947823,
+    "max landing descent rate (ft/s)": 23.463592262342434,
+    "max landing distance (ft)": 28796.231917891564
+  },
+  "sensitivity_apogee": [
+    [
+      "Drag coefficient",
+      -0.7375343794763068
+    ],
+    [
+      "Thrust / Isp",
+      0.6013897585589273
+    ],
+    [
+      "Dry mass",
+      -0.1967438729956926
+    ],
+    [
+      "Headwind component",
+      -0.13614883478116835
+    ],
+    [
+      "Thrust misalignment",
+      -0.09277184777599944
+    ],
+    [
+      "Wind speed",
+      -0.07723394566015815
+    ],
+    [
+      "Normal-force slope",
+      0.02264430515453015
+    ],
+    [
+      "Wind profile shape",
+      -0.012265121332635055
+    ],
+    [
+      "Rail elevation",
+      0.011032133755539242
+    ],
+    [
+      "Rail azimuth",
+      0.007804216568391546
+    ],
+    [
+      "Fin cant",
+      0.0037107530275497205
+    ]
+  ],
+  "sensitivity_landing_distance": [
+    [
+      "Headwind component",
+      -0.5240468010964202
+    ],
+    [
+      "Wind speed",
+      0.3888178153457977
+    ],
+    [
+      "Wind profile shape",
+      0.20358024045183998
+    ],
+    [
+      "Drag coefficient",
+      -0.1710779730990564
+    ],
+    [
+      "Rail elevation",
+      -0.14376524335548097
+    ],
+    [
+      "Thrust / Isp",
+      0.09303579550766101
+    ],
+    [
+      "Thrust misalignment",
+      0.04337507388144519
+    ],
+    [
+      "Rail azimuth",
+      0.039014875350019095
+    ],
+    [
+      "Fin cant",
+      -0.03495592994188302
+    ],
+    [
+      "Normal-force slope",
+      0.031879721149394004
+    ],
+    [
+      "Dry mass",
+      -0.018352098947328754
+    ]
+  ]
+}
