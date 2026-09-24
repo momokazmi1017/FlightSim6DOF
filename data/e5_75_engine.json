@@ -1,0 +1,15 @@
+{
+  "name": "E5-75",
+  "source": "Liquid Rocket Engine Design Tool, design_summary.json (commit beecda5)",
+  "propellants": "LOX / Ethanol-75",
+  "thrust_vac_N": 5644.142172044923,
+  "thrust_sea_level_N": 5000.0,
+  "exit_area_m2": 0.006357188966641233,
+  "mdot_ox_kg_s": 1.288087024438609,
+  "mdot_fuel_kg_s": 0.9908361726450834,
+  "isp_vac_s": 252.55012053726983,
+  "isp_sea_level_s": 223.72763906279195,
+  "chamber_pressure_bar": 25.0,
+  "exit_diameter_m": 0.08996790753197322,
+  "length_m": 0.2868632398943224
+}
